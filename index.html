@@ -224,7 +224,6 @@
     <!-- Punktebild -->
     <div class="viz-card" aria-label="Punktebild zur Aufgabe">
       <div class="viz-title">Punktebild</div>
-      <div class="viz-sub" id="viz-sub">—</div>
       <svg id="dots-svg" viewBox="0 0 360 220" role="img" aria-label="Punkte als Array">
         <!-- Dots werden per JS gezeichnet -->
       </svg>
@@ -295,8 +294,7 @@
   const restartBtn = document.getElementById('restart-btn');
 
   const dotsSvg = document.getElementById('dots-svg');
-  const vizSub = document.getElementById('viz-sub');
-
+  
   // Reihen-Buttons erzeugen (2–10)
   for (let n = 2; n <= 10; n++) {
     const btn = document.createElement('button');
@@ -395,8 +393,7 @@
 
     // Punktebild zeichnen (blau, wie Vorlage)
     renderDotsArray(currentQuestion.graphRows, currentQuestion.graphCols);
-    vizSub.textContent = `${currentQuestion.graphRows} Reihen · ${currentQuestion.graphCols} Spalten`;
-
+   
     progressText.textContent = `Aufgabe ${questionsSolved + 1} von ${TOTAL_QUESTIONS}`;
     answerInput.value = '';
     answerInput.focus();
