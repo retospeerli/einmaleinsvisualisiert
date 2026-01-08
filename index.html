@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Kleines Einmaleins – Reihen-Trainer</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .app {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      padding: 2rem 2.5rem;
+      max-width: 560px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    h1 {
+      margin-top: 0;
+      text-align: center;
+      font-size: 1.6rem;
+    }
+    .subtitle {
+      text-align: center;
+      color: #4b5563;
+      margin-bottom: 1.2rem;
+      font-size: 0.95rem;
+    }
+    .center { text-align: center; }
+
+    .reihen-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.6rem;
+      margin: 1rem 0 0.5rem;
+    }
+    .reihe-btn {
+      padding: 0.7rem 0.5rem;
+      border-radius: 999px;
+      border: 2px solid #d1d5db;
+      background: #f9fafb;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .reihe-btn.selected {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #1d4ed8;
+      box-shadow: 0 5px 15px rgba(37,99,235,0.35);
+    }
+    .reihe-btn:active { transform: translateY(1px); }
+
+    .row-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .row-actions button {
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      background: #e5e7eb;
+      color: #374151;
+      font-weight: 500;
+    }
+    .row-actions button:hover { background: #d1d5db; }
+
+    .selected-info {
+      font-size: 0.85rem;
+      color: #6b7280;
+      text-align: center;
+      min-height: 1.2rem;
+    }
+
+    .equation {
+      font-size: 2rem;
+      font-weight: 600;
+      margin: 0.9rem 0 0.4rem;
+      text-align: center;
+    }
+
+    .progress {
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    /* --- Punktebild (Vorlage ähnlich den hochgeladenen Bildern) --- */
+    .viz-card {
+      margin: 0.7rem auto 0.9rem;
+      width: 100%;
+      max-width: 420px;
+      border: 6px solid #1d4ed8;
+      border-radius: 18px;
+      background: #ffffff;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .viz-title {
+      font-size: 0.85rem;
+      color: #1f2937;
+      font-weight: 700;
+      margin: 0 0 6px;
+      text-align: center;
+    }
+    .viz-sub {
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin: 0 0 8px;
+      text-align: center;
+    }
+    svg { display:block; width:100%; height:auto; }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 0.7rem 0.9rem;
+      font-size: 1.2rem;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    input[type="number"]:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+    }
+
+    .primary-btn {
+      margin-top: 0.9rem;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      font-size: 1.1rem;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      font-weight: 600;
+      transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.2s ease;
+    }
+    .primary-btn:hover { background: #1d4ed8; }
+    .primary-btn:active { transform: translateY(1px); box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    .primary-btn:disabled { background: #9ca3af; cursor: not-allowed; box-shadow: none; }
+
+    .feedback {
+      min-height: 1.4rem;
+      margin-top: 0.4rem;
+      font-weight: 500;
+      text-align: center;
+    }
+    .feedback.ok { color: #15803d; }
+    .feedback.error { color: #b91c1c; }
+
+    .hidden { display: none; }
+
+    .stats {
+      margin-top: 1rem;
+      font-size: 0.95rem;
+      color: #374151;
+    }
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 0.1rem 0.6rem;
+      font-size: 0.8rem;
+      background: #eff6ff;
+      color: #1d4ed8;
+      margin-top: 0.3rem;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>Kleines Einmaleins</h1>
+  <div class="subtitle">
+    Wähle die Reihen aus, die du üben möchtest (2–10) <br>
+    und klicke dann auf „Los!“
+  </div>
+
+  <!-- Start-Bereich mit Reihen-Auswahl -->
+  <div id="start-screen">
+    <div class="center">
+      <p>Du kannst eine oder mehrere Reihen auswählen.</p>
+    </div>
+
+    <div class="reihen-grid" id="reihen-grid"></div>
+
+    <div class="row-actions">
+      <button type="button" id="select-all-btn">Alle auswählen</button>
+      <button type="button" id="clear-all-btn">Auswahl löschen</button>
+    </div>
+
+    <div class="selected-info" id="selected-info"></div>
+
+    <button class="primary-btn" id="start-btn" disabled>Los!</button>
+  </div>
+
+  <!-- Quiz-Bereich -->
+  <div id="quiz-screen" class="hidden">
+    <div class="progress" id="progress-text"></div>
+
+    <div class="center">
+      <div class="tag" id="variant-label"></div>
+      <div class="equation" id="equation-text">_ · _ = _</div>
+    </div>
+
+    <!-- Punktebild -->
+    <div class="viz-card" aria-label="Punktebild zur Aufgabe">
+      <div class="viz-title">Punktebild</div>
+      <div class="viz-sub" id="viz-sub">—</div>
+      <svg id="dots-svg" viewBox="0 0 360 220" role="img" aria-label="Punkte als Array">
+        <!-- Dots werden per JS gezeichnet -->
+      </svg>
+    </div>
+
+    <input type="number" id="answer-input" placeholder="Deine Antwort" autocomplete="off">
+    <button class="primary-btn" id="submit-btn">OK</button>
+    <div class="feedback" id="feedback"></div>
+
+    <div class="stats">
+      Bisher richtig: <span id="stat-correct">0</span> / <span id="stat-total">30</span><br>
+      Davon beim ersten Versuch richtig: <span id="stat-firsttry">0</span><br>
+      Falsche Versuche insgesamt: <span id="stat-wrong">0</span><br>
+      Geübte Reihen: <span id="stat-rows"></span>
+    </div>
+  </div>
+
+  <!-- Ergebnis-Bereich -->
+  <div id="result-screen" class="hidden center">
+    <h2>Fertig! 🎉</h2>
+    <p id="result-summary"></p>
+    <p style="font-size:0.9rem; color:#4b5563;">
+      Du kannst dieses Fenster jetzt schließen<br>
+      und zu LearningView zurückkehren.
+    </p>
+    <button class="primary-btn" id="restart-btn">Nochmal mit Reihen-Auswahl</button>
+  </div>
+</div>
+
+<script>
+  const TOTAL_QUESTIONS = 30;
+  const MIN_FACTOR = 1;
+  const MAX_FACTOR = 10;
+
+  let selectedRows = [];
+  let currentQuestion = null;
+  let questionsSolved = 0;
+  let attemptsCurrent = 0;
+  let correctFirstTry = 0;
+  let wrongAttemptsTotal = 0;
+
+  let lastRow = null;
+  let lastTaskKey = null;
+
+  const startScreen = document.getElementById('start-screen');
+  const quizScreen = document.getElementById('quiz-screen');
+  const resultScreen = document.getElementById('result-screen');
+
+  const reihenGrid = document.getElementById('reihen-grid');
+  const selectedInfo = document.getElementById('selected-info');
+  const startBtn = document.getElementById('start-btn');
+  const selectAllBtn = document.getElementById('select-all-btn');
+  const clearAllBtn = document.getElementById('clear-all-btn');
+
+  const progressText = document.getElementById('progress-text');
+  const equationText = document.getElementById('equation-text');
+  const answerInput = document.getElementById('answer-input');
+  const feedback = document.getElementById('feedback');
+  const statCorrect = document.getElementById('stat-correct');
+  const statTotal = document.getElementById('stat-total');
+  const statFirsttry = document.getElementById('stat-firsttry');
+  const statWrong = document.getElementById('stat-wrong');
+  const statRows = document.getElementById('stat-rows');
+  const variantLabel = document.getElementById('variant-label');
+  const resultSummary = document.getElementById('result-summary');
+
+  const submitBtn = document.getElementById('submit-btn');
+  const restartBtn = document.getElementById('restart-btn');
+
+  const dotsSvg = document.getElementById('dots-svg');
+  const vizSub = document.getElementById('viz-sub');
+
+  // Reihen-Buttons erzeugen (2–10)
+  for (let n = 2; n <= 10; n++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = n.toString();
+    btn.className = 'reihe-btn';
+    btn.dataset.value = n.toString();
+    btn.addEventListener('click', () => toggleRow(n));
+    reihenGrid.appendChild(btn);
+  }
+
+  function updateSelectedInfo() {
+    if (selectedRows.length === 0) {
+      selectedInfo.textContent = 'Keine Reihe ausgewählt.';
+      startBtn.disabled = true;
+    } else {
+      selectedInfo.textContent = 'Ausgewählte Reihen: ' + selectedRows.join(', ');
+      startBtn.disabled = false;
+    }
+  }
+
+  function toggleRow(n) {
+    const idx = selectedRows.indexOf(n);
+    const buttons = reihenGrid.querySelectorAll('.reihe-btn');
+
+    if (idx === -1) selectedRows.push(n);
+    else selectedRows.splice(idx, 1);
+
+    buttons.forEach(btn => {
+      const val = Number(btn.dataset.value);
+      btn.classList.toggle('selected', selectedRows.includes(val));
+    });
+
+    updateSelectedInfo();
+  }
+
+  selectAllBtn.addEventListener('click', () => {
+    selectedRows = [];
+    for (let n = 2; n <= 10; n++) selectedRows.push(n);
+    reihenGrid.querySelectorAll('.reihe-btn').forEach(btn => btn.classList.add('selected'));
+    updateSelectedInfo();
+  });
+
+  clearAllBtn.addEventListener('click', () => {
+    selectedRows = [];
+    reihenGrid.querySelectorAll('.reihe-btn').forEach(btn => btn.classList.remove('selected'));
+    updateSelectedInfo();
+  });
+
+  startBtn.addEventListener('click', startTraining);
+  submitBtn.addEventListener('click', checkAnswer);
+  restartBtn.addEventListener('click', () => {
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+  });
+
+  answerInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkAnswer();
+  });
+
+  function startTraining() {
+    if (selectedRows.length === 0) return;
+
+    questionsSolved = 0;
+    attemptsCurrent = 0;
+    correctFirstTry = 0;
+    wrongAttemptsTotal = 0;
+    lastRow = null;
+    lastTaskKey = null;
+
+    statCorrect.textContent = '0';
+    statTotal.textContent = TOTAL_QUESTIONS.toString();
+    statFirsttry.textContent = '0';
+    statWrong.textContent = '0';
+    statRows.textContent = selectedRows.join(', ');
+    feedback.textContent = '';
+    feedback.className = 'feedback';
+
+    startScreen.classList.add('hidden');
+    resultScreen.classList.add('hidden');
+    quizScreen.classList.remove('hidden');
+
+    newQuestion();
+  }
+
+  function newQuestion() {
+    attemptsCurrent = 0;
+    feedback.textContent = '';
+    feedback.className = 'feedback';
+
+    currentQuestion = generateQuestion();
+
+    equationText.textContent = currentQuestion.display;
+    variantLabel.textContent = currentQuestion.variantLabel;
+
+    // Punktebild zeichnen (blau, wie Vorlage)
+    renderDotsArray(currentQuestion.graphRows, currentQuestion.graphCols);
+    vizSub.textContent = `${currentQuestion.graphRows} Reihen · ${currentQuestion.graphCols} Spalten`;
+
+    progressText.textContent = `Aufgabe ${questionsSolved + 1} von ${TOTAL_QUESTIONS}`;
+    answerInput.value = '';
+    answerInput.focus();
+  }
+
+  function generateQuestion() {
+    const rowsCount = selectedRows.length;
+    let row, b, product, variant, display, answer, label, taskKey;
+    let graphRows, graphCols;
+
+    while (true) {
+      row = randomChoice(selectedRows);
+
+      if (rowsCount >= 3 && lastRow !== null && row === lastRow) continue;
+
+      b = randomInt(MIN_FACTOR, MAX_FACTOR);
+      product = row * b;
+
+      // 0: x · b = product (x gesucht)
+      // 1: row · x = product (x gesucht)
+      // 2: row · b = ? (Produkt gesucht)
+      variant = randomInt(0, 2);
+
+      if (variant === 0) {
+        display = `x · ${b} = ${product}`;
+        answer = row; // x
+        label = `${row}er-Reihe – Faktor suchen`;
+        // Punktebild: x Reihen, b Spalten (x ist die Lösung, aber im Bild sichtbar durch Reihenanzahl)
+        graphRows = answer;
+        graphCols = b;
+      } else if (variant === 1) {
+        display = `${row} · x = ${product}`;
+        answer = b; // x
+        label = `${row}er-Reihe – Faktor suchen`;
+        // Punktebild: row Reihen, x Spalten (x ist die Lösung, aber im Bild sichtbar durch Spaltenanzahl)
+        graphRows = row;
+        graphCols = answer;
+      } else {
+        display = `${row} · ${b} = ?`;
+        answer = product;
+        label = `${row}er-Reihe – Produkt suchen`;
+        // Punktebild: row Reihen, b Spalten
+        graphRows = row;
+        graphCols = b;
+      }
+
+      taskKey = `${row}-${b}-${variant}`;
+      if (taskKey === lastTaskKey) continue;
+
+      // Bei 1 oder 2 Reihen: Antwort darf KEINE der ausgewählten Reihen sein (wie vorher)
+      if (rowsCount <= 2 && selectedRows.includes(answer)) continue;
+
+      break;
+    }
+
+    lastRow = row;
+    lastTaskKey = taskKey;
+
+    return { row, b, product, variant, display, answer, variantLabel: label, graphRows, graphCols };
+  }
+
+  function checkAnswer() {
+    const value = answerInput.value.trim();
+    if (value === '') {
+      feedback.textContent = 'Bitte gib eine Zahl ein.';
+      feedback.className = 'feedback error';
+      answerInput.focus();
+      return;
+    }
+
+    const given = Number(value);
+    if (!Number.isFinite(given)) {
+      feedback.textContent = 'Das ist keine gültige Zahl.';
+      feedback.className = 'feedback error';
+      answerInput.focus();
+      return;
+    }
+
+    attemptsCurrent++;
+
+    if (given === currentQuestion.answer) {
+      if (attemptsCurrent === 1) correctFirstTry++;
+      questionsSolved++;
+
+      statCorrect.textContent = questionsSolved.toString();
+      statFirsttry.textContent = correctFirstTry.toString();
+
+      feedback.textContent = 'Richtig! 👍';
+      feedback.className = 'feedback ok';
+
+      if (questionsSolved >= TOTAL_QUESTIONS) endTraining();
+      else setTimeout(newQuestion, 450);
+    } else {
+      wrongAttemptsTotal++;
+      statWrong.textContent = wrongAttemptsTotal.toString();
+      feedback.textContent = 'Leider falsch. Versuch es nochmal!';
+      feedback.className = 'feedback error';
+      answerInput.select();
+      answerInput.focus();
+    }
+  }
+
+  function endTraining() {
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+
+    const quote = (correctFirstTry / TOTAL_QUESTIONS * 100).toFixed(0);
+    const rowsText = selectedRows.join(', ');
+
+    resultSummary.innerHTML =
+      `Du hast <strong>${TOTAL_QUESTIONS}</strong> Aufgaben zu den Reihen <strong>${rowsText}</strong> gelöst.<br>` +
+      `Davon waren <strong>${correctFirstTry}</strong> schon beim ersten Versuch richtig ` +
+      `(<strong>${quote}%</strong>).<br>` +
+      `Du hattest insgesamt <strong>${wrongAttemptsTotal}</strong> falsche Versuche.`;
+
+    // LearningView Auto-Haken: Aufgabe erledigt
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage('AppSolved', '*');
+      }
+    } catch (e) {
+      console.warn('postMessage AppSolved nicht möglich:', e);
+    }
+  }
+
+  /* ---------- Punktebild (blau) ---------- */
+  function renderDotsArray(rows, cols) {
+    // SVG leeren
+    while (dotsSvg.firstChild) dotsSvg.removeChild(dotsSvg.firstChild);
+
+    const vb = dotsSvg.viewBox.baseVal;
+    const W = vb.width, H = vb.height;
+
+    // Innenabstände (wie Vorlage: viel Weißraum)
+    const padX = 22;
+    const padY = 16;
+
+    const usableW = W - padX * 2;
+    const usableH = H - padY * 2;
+
+    // Zellenabstand bestimmen (gleichmäßig)
+    const cellW = usableW / cols;
+    const cellH = usableH / rows;
+
+    // Kreisradius: knapp unter halbe Zelle (mit Mindest/Max-Grenzen)
+    let r = Math.min(cellW, cellH) * 0.36;
+    r = clamp(r, 6, 16); // optisch wie Vorlage (6er bis 16er Kreise)
+
+    // Array zentrieren: tatsächliche Breite/Höhe der Punktefläche
+    const dotsW = cols * cellW;
+    const dotsH = rows * cellH;
+
+    const startX = (W - dotsW) / 2 + cellW / 2;
+    const startY = (H - dotsH) / 2 + cellH / 2;
+
+    for (let rr = 0; rr < rows; rr++) {
+      for (let cc = 0; cc < cols; cc++) {
+        const cx = startX + cc * cellW;
+        const cy = startY + rr * cellH;
+
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('cx', cx.toFixed(2));
+        c.setAttribute('cy', cy.toFixed(2));
+        c.setAttribute('r', r.toFixed(2));
+        c.setAttribute('fill', '#1d4ed8'); // blau
+        dotsSvg.appendChild(c);
+      }
+    }
+  }
+
+  function clamp(x, min, max) {
+    return Math.max(min, Math.min(max, x));
+  }
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function randomChoice(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  // Initial
+  updateSelectedInfo();
+</script>
+</body>
+</html>
