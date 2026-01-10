@@ -101,7 +101,7 @@
       text-align: center;
     }
 
-    /* --- Punktebild (Vorlage ähnlich den hochgeladenen Bildern) --- */
+    /* --- Punktebild --- */
     .viz-card {
       margin: 0.7rem auto 0.9rem;
       width: 100%;
@@ -117,12 +117,6 @@
       color: #1f2937;
       font-weight: 700;
       margin: 0 0 6px;
-      text-align: center;
-    }
-    .viz-sub {
-      font-size: 0.82rem;
-      color: #6b7280;
-      margin: 0 0 8px;
       text-align: center;
     }
     svg { display:block; width:100%; height:auto; }
@@ -224,9 +218,7 @@
     <!-- Punktebild -->
     <div class="viz-card" aria-label="Punktebild zur Aufgabe">
       <div class="viz-title">Punktebild</div>
-      <svg id="dots-svg" viewBox="0 0 360 220" role="img" aria-label="Punkte als Array">
-        <!-- Dots werden per JS gezeichnet -->
-      </svg>
+      <svg id="dots-svg" viewBox="0 0 360 220" role="img" aria-label="Punkte als Array"></svg>
     </div>
 
     <input type="number" id="answer-input" placeholder="Deine Antwort" autocomplete="off">
@@ -251,12 +243,31 @@
     </p>
     <button class="primary-btn" id="restart-btn">Nochmal mit Reihen-Auswahl</button>
   </div>
+
+  <!-- Audio (Repo: ./audio/) -->
+  <audio id="snd-correct" src="audio/correct.wav" preload="auto"></audio>
+  <audio id="snd-error"   src="audio/error.wav" preload="auto"></audio>
+  <audio id="snd-won"     src="audio/gamewon.wav" preload="auto"></audio>
 </div>
 
 <script>
   const TOTAL_QUESTIONS = 30;
   const MIN_FACTOR = 1;
   const MAX_FACTOR = 10;
+
+  // --- Audio refs ---
+  const sndCorrect = document.getElementById('snd-correct');
+  const sndError   = document.getElementById('snd-error');
+  const sndWon     = document.getElementById('snd-won');
+
+  function playSound(audioEl){
+    if(!audioEl) return;
+    try{
+      audioEl.currentTime = 0;
+      const p = audioEl.play();
+      if(p && typeof p.catch === "function") p.catch(()=>{});
+    }catch(e){}
+  }
 
   let selectedRows = [];
   let currentQuestion = null;
@@ -294,7 +305,7 @@
   const restartBtn = document.getElementById('restart-btn');
 
   const dotsSvg = document.getElementById('dots-svg');
-  
+
   // Reihen-Buttons erzeugen (2–10)
   for (let n = 2; n <= 10; n++) {
     const btn = document.createElement('button');
@@ -344,7 +355,14 @@
     updateSelectedInfo();
   });
 
-  startBtn.addEventListener('click', startTraining);
+  // Start: einmal "stumme" Soundfreigabe durch User-Geste (hilft bei Autoplay-Sperren)
+  startBtn.addEventListener('click', () => {
+    try{
+      [sndCorrect, sndError, sndWon].forEach(a => { if(a){ a.volume = 1; a.play().then(()=>{a.pause(); a.currentTime=0;}).catch(()=>{}); }});
+    }catch(e){}
+    startTraining();
+  });
+
   submitBtn.addEventListener('click', checkAnswer);
   restartBtn.addEventListener('click', () => {
     quizScreen.classList.add('hidden');
@@ -391,9 +409,8 @@
     equationText.textContent = currentQuestion.display;
     variantLabel.textContent = currentQuestion.variantLabel;
 
-    // Punktebild zeichnen (blau, wie Vorlage)
     renderDotsArray(currentQuestion.graphRows, currentQuestion.graphCols);
-   
+
     progressText.textContent = `Aufgabe ${questionsSolved + 1} von ${TOTAL_QUESTIONS}`;
     answerInput.value = '';
     answerInput.focus();
@@ -412,30 +429,24 @@
       b = randomInt(MIN_FACTOR, MAX_FACTOR);
       product = row * b;
 
-      // 0: x · b = product (x gesucht)
-      // 1: row · x = product (x gesucht)
-      // 2: row · b = ? (Produkt gesucht)
       variant = randomInt(0, 2);
 
       if (variant === 0) {
         display = `x · ${b} = ${product}`;
-        answer = row; // x
+        answer = row;
         label = `${row}er-Reihe – Faktor suchen`;
-        // Punktebild: x Reihen, b Spalten (x ist die Lösung, aber im Bild sichtbar durch Reihenanzahl)
         graphRows = answer;
         graphCols = b;
       } else if (variant === 1) {
         display = `${row} · x = ${product}`;
-        answer = b; // x
+        answer = b;
         label = `${row}er-Reihe – Faktor suchen`;
-        // Punktebild: row Reihen, x Spalten (x ist die Lösung, aber im Bild sichtbar durch Spaltenanzahl)
         graphRows = row;
         graphCols = answer;
       } else {
         display = `${row} · ${b} = ?`;
         answer = product;
         label = `${row}er-Reihe – Produkt suchen`;
-        // Punktebild: row Reihen, b Spalten
         graphRows = row;
         graphCols = b;
       }
@@ -443,7 +454,6 @@
       taskKey = `${row}-${b}-${variant}`;
       if (taskKey === lastTaskKey) continue;
 
-      // Bei 1 oder 2 Reihen: Antwort darf KEINE der ausgewählten Reihen sein (wie vorher)
       if (rowsCount <= 2 && selectedRows.includes(answer)) continue;
 
       break;
@@ -460,6 +470,7 @@
     if (value === '') {
       feedback.textContent = 'Bitte gib eine Zahl ein.';
       feedback.className = 'feedback error';
+      playSound(sndError);
       answerInput.focus();
       return;
     }
@@ -468,6 +479,7 @@
     if (!Number.isFinite(given)) {
       feedback.textContent = 'Das ist keine gültige Zahl.';
       feedback.className = 'feedback error';
+      playSound(sndError);
       answerInput.focus();
       return;
     }
@@ -483,14 +495,23 @@
 
       feedback.textContent = 'Richtig! 👍';
       feedback.className = 'feedback ok';
+      playSound(sndCorrect);
 
-      if (questionsSolved >= TOTAL_QUESTIONS) endTraining();
-      else setTimeout(newQuestion, 450);
+      if (questionsSolved >= TOTAL_QUESTIONS) {
+        // erst "GameWon", dann Endscreen
+        setTimeout(() => {
+          playSound(sndWon);
+          endTraining();
+        }, 250);
+      } else {
+        setTimeout(newQuestion, 450);
+      }
     } else {
       wrongAttemptsTotal++;
       statWrong.textContent = wrongAttemptsTotal.toString();
       feedback.textContent = 'Leider falsch. Versuch es nochmal!';
       feedback.className = 'feedback error';
+      playSound(sndError);
       answerInput.select();
       answerInput.focus();
     }
@@ -509,7 +530,6 @@
       `(<strong>${quote}%</strong>).<br>` +
       `Du hattest insgesamt <strong>${wrongAttemptsTotal}</strong> falsche Versuche.`;
 
-    // LearningView Auto-Haken: Aufgabe erledigt
     try {
       if (window.parent && window.parent !== window) {
         window.parent.postMessage('AppSolved', '*');
@@ -519,30 +539,25 @@
     }
   }
 
-  /* ---------- Punktebild (blau) ---------- */
+  /* ---------- Punktebild: gerade Spalten rot, ungerade blau ---------- */
   function renderDotsArray(rows, cols) {
-    // SVG leeren
     while (dotsSvg.firstChild) dotsSvg.removeChild(dotsSvg.firstChild);
 
     const vb = dotsSvg.viewBox.baseVal;
     const W = vb.width, H = vb.height;
 
-    // Innenabstände (wie Vorlage: viel Weißraum)
     const padX = 22;
     const padY = 16;
 
     const usableW = W - padX * 2;
     const usableH = H - padY * 2;
 
-    // Zellenabstand bestimmen (gleichmäßig)
     const cellW = usableW / cols;
     const cellH = usableH / rows;
 
-    // Kreisradius: knapp unter halbe Zelle (mit Mindest/Max-Grenzen)
     let r = Math.min(cellW, cellH) * 0.36;
-    r = clamp(r, 6, 16); // optisch wie Vorlage (6er bis 16er Kreise)
+    r = clamp(r, 6, 16);
 
-    // Array zentrieren: tatsächliche Breite/Höhe der Punktefläche
     const dotsW = cols * cellW;
     const dotsH = rows * cellH;
 
@@ -558,7 +573,12 @@
         c.setAttribute('cx', cx.toFixed(2));
         c.setAttribute('cy', cy.toFixed(2));
         c.setAttribute('r', r.toFixed(2));
-        c.setAttribute('fill', '#1d4ed8'); // blau
+
+        // cc ist 0-basiert -> Spalte 1 = cc=0
+        // "gerade Spalten" (2,4,6,...) => cc=1,3,5,... => (cc+1) % 2 === 0
+        const evenColumn = ((cc + 1) % 2 === 0);
+        c.setAttribute('fill', evenColumn ? '#b91c1c' : '#1d4ed8');
+
         dotsSvg.appendChild(c);
       }
     }
@@ -576,7 +596,6 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  // Initial
   updateSelectedInfo();
 </script>
 </body>
