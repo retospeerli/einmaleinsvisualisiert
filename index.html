@@ -540,50 +540,69 @@
   }
 
   /* ---------- Punktebild: gerade Spalten rot, ungerade blau ---------- */
-  function renderDotsArray(rows, cols) {
-    while (dotsSvg.firstChild) dotsSvg.removeChild(dotsSvg.firstChild);
+ function renderDotsArray(rows, cols) {
+  while (dotsSvg.firstChild) dotsSvg.removeChild(dotsSvg.firstChild);
 
-    const vb = dotsSvg.viewBox.baseVal;
-    const W = vb.width, H = vb.height;
+  const vb = dotsSvg.viewBox.baseVal;
+  const W = vb.width, H = vb.height;
 
-    const padX = 22;
-    const padY = 16;
+  // Innenabstände (wie vorher)
+  const padX = 22;
+  const padY = 16;
 
-    const usableW = W - padX * 2;
-    const usableH = H - padY * 2;
+  const usableW = W - padX * 2;
+  const usableH = H - padY * 2;
 
-    const cellW = usableW / cols;
-    const cellH = usableH / rows;
+  // Sonderfälle
+  rows = Math.max(1, rows);
+  cols = Math.max(1, cols);
 
-    let r = Math.min(cellW, cellH) * 0.36;
-    r = clamp(r, 6, 16);
+  // 1) Grobe Schrittweite schätzen (ohne Radius), damit es sicher reinpasst
+  //    Wir wollen: step_x == step_y == step
+  let step = Math.min(
+    cols === 1 ? usableW : usableW / (cols - 1),
+    rows === 1 ? usableH : usableH / (rows - 1)
+  );
 
-    const dotsW = cols * cellW;
-    const dotsH = rows * cellH;
+  // 2) Radius aus step ableiten
+  let r = clamp(step * 0.36, 6, 16);
 
-    const startX = (W - dotsW) / 2 + cellW / 2;
-    const startY = (H - dotsH) / 2 + cellH / 2;
+  // 3) step nochmal sauber berechnen, diesmal mit Radius berücksichtigt
+  const maxStepX = (cols === 1) ? 0 : (usableW - 2 * r) / (cols - 1);
+  const maxStepY = (rows === 1) ? 0 : (usableH - 2 * r) / (rows - 1);
 
-    for (let rr = 0; rr < rows; rr++) {
-      for (let cc = 0; cc < cols; cc++) {
-        const cx = startX + cc * cellW;
-        const cy = startY + rr * cellH;
+  step = Math.min(
+    cols === 1 ? 0 : maxStepX,
+    rows === 1 ? 0 : maxStepY
+  );
 
-        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        c.setAttribute('cx', cx.toFixed(2));
-        c.setAttribute('cy', cy.toFixed(2));
-        c.setAttribute('r', r.toFixed(2));
-
-        // cc ist 0-basiert -> Spalte 1 = cc=0
-        // "gerade Spalten" (2,4,6,...) => cc=1,3,5,... => (cc+1) % 2 === 0
-        const evenColumn = ((cc + 1) % 2 === 0);
-        c.setAttribute('fill', evenColumn ? '#b91c1c' : '#1d4ed8');
-
-        dotsSvg.appendChild(c);
-      }
-    }
+  // Falls nach dem Radius die Schrittweite zu klein wird, Radius anpassen
+  if (step > 0) {
+    r = clamp(step * 0.36, 6, 16);
   }
 
+  // Linksbündig + obenbündig
+  const startX = padX + r;
+  const startY = padY + r;
+
+  for (let rr = 0; rr < rows; rr++) {
+    for (let cc = 0; cc < cols; cc++) {
+      const cx = startX + cc * step;
+      const cy = startY + rr * step;
+
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', cx.toFixed(2));
+      c.setAttribute('cy', cy.toFixed(2));
+      c.setAttribute('r', r.toFixed(2));
+
+      // Spalte 2,4,6,... rot
+      const evenColumn = ((cc + 1) % 2 === 0);
+      c.setAttribute('fill', evenColumn ? '#b91c1c' : '#1d4ed8');
+
+      dotsSvg.appendChild(c);
+    }
+  }
+}
   function clamp(x, min, max) {
     return Math.max(min, Math.min(max, x));
   }
