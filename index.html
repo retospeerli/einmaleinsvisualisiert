@@ -355,10 +355,14 @@
     updateSelectedInfo();
   });
 
-  // Start: einmal "stumme" Soundfreigabe durch User-Geste (hilft bei Autoplay-Sperren)
   startBtn.addEventListener('click', () => {
     try{
-      [sndCorrect, sndError, sndWon].forEach(a => { if(a){ a.volume = 1; a.play().then(()=>{a.pause(); a.currentTime=0;}).catch(()=>{}); }});
+      [sndCorrect, sndError, sndWon].forEach(a => {
+        if(a){
+          a.volume = 1;
+          a.play().then(()=>{a.pause(); a.currentTime=0;}).catch(()=>{});
+        }
+      });
     }catch(e){}
     startTraining();
   });
@@ -409,6 +413,7 @@
     equationText.textContent = currentQuestion.display;
     variantLabel.textContent = currentQuestion.variantLabel;
 
+    // Punktebild zeichnen
     renderDotsArray(currentQuestion.graphRows, currentQuestion.graphCols);
 
     progressText.textContent = `Aufgabe ${questionsSolved + 1} von ${TOTAL_QUESTIONS}`;
@@ -435,20 +440,29 @@
         display = `x · ${b} = ${product}`;
         answer = row;
         label = `${row}er-Reihe – Faktor suchen`;
-        graphRows = answer;
-        graphCols = b;
+
+        // FIX: bei b==1 soll das Bild row×1 als 1 Reihe mit row Spalten zeigen (row Punkte),
+        // statt row Reihen mit 1 Spalte (wirkt wie 1 Punkt).
+        graphRows = (b === 1) ? 1 : answer;
+        graphCols = (b === 1) ? answer : b;
+
       } else if (variant === 1) {
         display = `${row} · x = ${product}`;
         answer = b;
         label = `${row}er-Reihe – Faktor suchen`;
-        graphRows = row;
-        graphCols = answer;
+
+        // FIX: wenn x==1, dann row×1 als 1 Reihe mit row Spalten darstellen
+        graphRows = (answer === 1) ? 1 : row;
+        graphCols = (answer === 1) ? row : answer;
+
       } else {
         display = `${row} · ${b} = ?`;
         answer = product;
         label = `${row}er-Reihe – Produkt suchen`;
-        graphRows = row;
-        graphCols = b;
+
+        // FIX: auch beim Produkt-suchen: row×1 als 1 Reihe mit row Spalten
+        graphRows = (b === 1) ? 1 : row;
+        graphCols = (b === 1) ? row : b;
       }
 
       taskKey = `${row}-${b}-${variant}`;
@@ -498,7 +512,6 @@
       playSound(sndCorrect);
 
       if (questionsSolved >= TOTAL_QUESTIONS) {
-        // erst "GameWon", dann Endscreen
         setTimeout(() => {
           playSound(sndWon);
           endTraining();
@@ -539,70 +552,62 @@
     }
   }
 
-  /* ---------- Punktebild: gerade Spalten rot, ungerade blau ---------- */
- function renderDotsArray(rows, cols) {
-  while (dotsSvg.firstChild) dotsSvg.removeChild(dotsSvg.firstChild);
+  /* ---------- Punktebild (bleibt sonst unverändert) ---------- */
+  function renderDotsArray(rows, cols) {
+    while (dotsSvg.firstChild) dotsSvg.removeChild(dotsSvg.firstChild);
 
-  const vb = dotsSvg.viewBox.baseVal;
-  const W = vb.width, H = vb.height;
+    const vb = dotsSvg.viewBox.baseVal;
+    const W = vb.width, H = vb.height;
 
-  // Innenabstände (wie vorher)
-  const padX = 22;
-  const padY = 16;
+    const padX = 22;
+    const padY = 16;
 
-  const usableW = W - padX * 2;
-  const usableH = H - padY * 2;
+    const usableW = W - padX * 2;
+    const usableH = H - padY * 2;
 
-  // Sonderfälle
-  rows = Math.max(1, rows);
-  cols = Math.max(1, cols);
+    rows = Math.max(1, rows);
+    cols = Math.max(1, cols);
 
-  // 1) Grobe Schrittweite schätzen (ohne Radius), damit es sicher reinpasst
-  //    Wir wollen: step_x == step_y == step
-  let step = Math.min(
-    cols === 1 ? usableW : usableW / (cols - 1),
-    rows === 1 ? usableH : usableH / (rows - 1)
-  );
+    let step = Math.min(
+      cols === 1 ? usableW : usableW / (cols - 1),
+      rows === 1 ? usableH : usableH / (rows - 1)
+    );
 
-  // 2) Radius aus step ableiten
-  let r = clamp(step * 0.36, 6, 16);
+    let r = clamp(step * 0.36, 6, 16);
 
-  // 3) step nochmal sauber berechnen, diesmal mit Radius berücksichtigt
-  const maxStepX = (cols === 1) ? 0 : (usableW - 2 * r) / (cols - 1);
-  const maxStepY = (rows === 1) ? 0 : (usableH - 2 * r) / (rows - 1);
+    const maxStepX = (cols === 1) ? 0 : (usableW - 2 * r) / (cols - 1);
+    const maxStepY = (rows === 1) ? 0 : (usableH - 2 * r) / (rows - 1);
 
-  step = Math.min(
-    cols === 1 ? 0 : maxStepX,
-    rows === 1 ? 0 : maxStepY
-  );
+    step = Math.min(
+      cols === 1 ? 0 : maxStepX,
+      rows === 1 ? 0 : maxStepY
+    );
 
-  // Falls nach dem Radius die Schrittweite zu klein wird, Radius anpassen
-  if (step > 0) {
-    r = clamp(step * 0.36, 6, 16);
-  }
+    if (step > 0) {
+      r = clamp(step * 0.36, 6, 16);
+    }
 
-  // Linksbündig + obenbündig
-  const startX = padX + r;
-  const startY = padY + r;
+    const startX = padX + r;
+    const startY = padY + r;
 
-  for (let rr = 0; rr < rows; rr++) {
-    for (let cc = 0; cc < cols; cc++) {
-      const cx = startX + cc * step;
-      const cy = startY + rr * step;
+    for (let rr = 0; rr < rows; rr++) {
+      for (let cc = 0; cc < cols; cc++) {
+        const cx = startX + cc * step;
+        const cy = startY + rr * step;
 
-      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      c.setAttribute('cx', cx.toFixed(2));
-      c.setAttribute('cy', cy.toFixed(2));
-      c.setAttribute('r', r.toFixed(2));
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('cx', cx.toFixed(2));
+        c.setAttribute('cy', cy.toFixed(2));
+        c.setAttribute('r', r.toFixed(2));
 
-      // Spalte 2,4,6,... rot
-      const evenColumn = ((cc + 1) % 2 === 0);
-      c.setAttribute('fill', evenColumn ? '#b91c1c' : '#1d4ed8');
+        const evenColumn = ((cc + 1) % 2 === 0);
+        c.setAttribute('fill', evenColumn ? '#b91c1c' : '#1d4ed8');
 
-      dotsSvg.appendChild(c);
+        dotsSvg.appendChild(c);
+      }
     }
   }
-}
+
   function clamp(x, min, max) {
     return Math.max(min, Math.min(max, x));
   }
