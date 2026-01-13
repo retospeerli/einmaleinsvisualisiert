@@ -101,7 +101,6 @@
       text-align: center;
     }
 
-    /* --- Punktebild --- */
     .viz-card {
       margin: 0.7rem auto 0.9rem;
       width: 100%;
@@ -188,7 +187,6 @@
     und klicke dann auf „Los!“
   </div>
 
-  <!-- Start-Bereich mit Reihen-Auswahl -->
   <div id="start-screen">
     <div class="center">
       <p>Du kannst eine oder mehrere Reihen auswählen.</p>
@@ -206,7 +204,6 @@
     <button class="primary-btn" id="start-btn" disabled>Los!</button>
   </div>
 
-  <!-- Quiz-Bereich -->
   <div id="quiz-screen" class="hidden">
     <div class="progress" id="progress-text"></div>
 
@@ -215,7 +212,6 @@
       <div class="equation" id="equation-text">_ · _ = _</div>
     </div>
 
-    <!-- Punktebild -->
     <div class="viz-card" aria-label="Punktebild zur Aufgabe">
       <div class="viz-title">Punktebild</div>
       <svg id="dots-svg" viewBox="0 0 360 220" role="img" aria-label="Punkte als Array"></svg>
@@ -233,7 +229,6 @@
     </div>
   </div>
 
-  <!-- Ergebnis-Bereich -->
   <div id="result-screen" class="hidden center">
     <h2>Fertig! 🎉</h2>
     <p id="result-summary"></p>
@@ -244,7 +239,6 @@
     <button class="primary-btn" id="restart-btn">Nochmal mit Reihen-Auswahl</button>
   </div>
 
-  <!-- Audio (Repo: ./audio/) -->
   <audio id="snd-correct" src="audio/correct.wav" preload="auto"></audio>
   <audio id="snd-error"   src="audio/error.wav" preload="auto"></audio>
   <audio id="snd-won"     src="audio/gamewon.wav" preload="auto"></audio>
@@ -252,10 +246,11 @@
 
 <script>
   const TOTAL_QUESTIONS = 30;
-  const MIN_FACTOR = 1;
+
+  // Faktor 1 gestrichen:
+  const MIN_FACTOR = 2;
   const MAX_FACTOR = 10;
 
-  // --- Audio refs ---
   const sndCorrect = document.getElementById('snd-correct');
   const sndError   = document.getElementById('snd-error');
   const sndWon     = document.getElementById('snd-won');
@@ -306,7 +301,6 @@
 
   const dotsSvg = document.getElementById('dots-svg');
 
-  // Reihen-Buttons erzeugen (2–10)
   for (let n = 2; n <= 10; n++) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -413,7 +407,6 @@
     equationText.textContent = currentQuestion.display;
     variantLabel.textContent = currentQuestion.variantLabel;
 
-    // Punktebild zeichnen
     renderDotsArray(currentQuestion.graphRows, currentQuestion.graphCols);
 
     progressText.textContent = `Aufgabe ${questionsSolved + 1} von ${TOTAL_QUESTIONS}`;
@@ -431,6 +424,7 @@
 
       if (rowsCount >= 3 && lastRow !== null && row === lastRow) continue;
 
+      // Faktor 1 kommt nicht mehr vor, da MIN_FACTOR=2
       b = randomInt(MIN_FACTOR, MAX_FACTOR);
       product = row * b;
 
@@ -440,29 +434,20 @@
         display = `x · ${b} = ${product}`;
         answer = row;
         label = `${row}er-Reihe – Faktor suchen`;
-
-        // FIX: bei b==1 soll das Bild row×1 als 1 Reihe mit row Spalten zeigen (row Punkte),
-        // statt row Reihen mit 1 Spalte (wirkt wie 1 Punkt).
-        graphRows = (b === 1) ? 1 : answer;
-        graphCols = (b === 1) ? answer : b;
-
+        graphRows = answer;
+        graphCols = b;
       } else if (variant === 1) {
         display = `${row} · x = ${product}`;
         answer = b;
         label = `${row}er-Reihe – Faktor suchen`;
-
-        // FIX: wenn x==1, dann row×1 als 1 Reihe mit row Spalten darstellen
-        graphRows = (answer === 1) ? 1 : row;
-        graphCols = (answer === 1) ? row : answer;
-
+        graphRows = row;
+        graphCols = answer;
       } else {
         display = `${row} · ${b} = ?`;
         answer = product;
         label = `${row}er-Reihe – Produkt suchen`;
-
-        // FIX: auch beim Produkt-suchen: row×1 als 1 Reihe mit row Spalten
-        graphRows = (b === 1) ? 1 : row;
-        graphCols = (b === 1) ? row : b;
+        graphRows = row;
+        graphCols = b;
       }
 
       taskKey = `${row}-${b}-${variant}`;
@@ -552,7 +537,6 @@
     }
   }
 
-  /* ---------- Punktebild (bleibt sonst unverändert) ---------- */
   function renderDotsArray(rows, cols) {
     while (dotsSvg.firstChild) dotsSvg.removeChild(dotsSvg.firstChild);
 
